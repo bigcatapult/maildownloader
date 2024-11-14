@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Письма</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f5f5f5;
+  }
+
+  #get-mail-button {
+    display: inline-block;
+    padding: 10px 20px;
+    margin-bottom: 20px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+
+  #mail-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+  }
+
+  .mail-card {
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    padding: 20px;
+    width: calc(33.33% - 20px);
+    box-sizing: border-box;
+  }
+
+  .mail-card h3 {
+    margin: 0;
+    color: #333;
+    font-size: 18px;
+  }
+
+  .mail-card p {
+    margin: 5px 0;
+    color: #555;
+  }
+
+  .mail-card a {
+    color: #4CAF50;
+    text-decoration: none;
+    font-weight: bold;
+  }
+
+  .mail-card a:hover {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<button id="get-mail-button">Обновить</button>
+
+<div id="mail-container">
+  {% for mail in mails|dictsortreversed:"date_received" %}
+  <div class="mail-card">
+    <h3>Тема: {{ mail.subject }}</h3>
+    <p><strong>UID:</strong> {{ mail.uid }}</p>
+    <p><strong>Дата отправки:</strong> {{ mail.date_time_sent }}</p>
+    <p><strong>Дата получения:</strong> {{ mail.date_received }}</p>
+    <p><strong>Отправитель:</strong> {{ mail.mail_from }}</p>
+    <p><strong>Текст письма:</strong> {{ mail.body| truncatewords:10 }}</p>
+    {% if mail.mails.file.file_url %}
+      <p><a href="{{ mail.mails.file.file_url }}">Скачать файл</a></p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+  const getMailButton = document.getElementById('get-mail-button');
+  const mailContainer = document.getElementById('mail-container');
+  const socket = new WebSocket('ws://127.0.0.1:8000/ws/mail/');
+
+  socket.onopen = function() {
+    console.log('Соединение WebSocket установлено.');
+  };
+
+  socket.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    const mailCard = document.createElement('div');
+    mailCard.classList.add('mail-card');
+
+    mailCard.innerHTML = `
+      <h3>Тема: ${data.subject}</h3>
+      <p><strong>UID:</strong> ${data.uid}</p>
+      <p><strong>Дата отправки:</strong> ${data.date_time_sent}</p>
+      <p><strong>Дата получения:</strong> ${data.date_received}</p>
+      <p><strong>Отправитель:</strong> ${data.mail_from}</p>
+      <p><strong>Текст письма:</strong> ${data.body}</p>
+      ${data.file_url ? `<p><a href="${data.file_url}">Скачать файл</a></p>` : ''}
+    `;
+
+    mailContainer.prepend(mailCard);
+  };
+
+  getMailButton.addEventListener('click', function() {
+    socket.send(JSON.stringify({ 'message': 'get_mail' }));
+  });
+
+  setInterval(() => {
+    socket.send(JSON.stringify({ 'message': 'get_mail' }));
+  }, 5000);
+</script>
+</body>
+</html>
